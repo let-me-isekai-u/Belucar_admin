@@ -1,0 +1,190 @@
+# 📦 Chat Models (Admin)
+
+Thư mục: `lib/models/chat/`
+
+Tài liệu này mô tả mục đích của từng model, cách sử dụng và mapping với API backend.
+
+---
+
+## 1. ChatConversationDto
+
+**File:** `chat_conversation_dto.dart`
+**Dùng cho:**
+
+* Danh sách inbox admin
+
+**API liên quan:**
+
+* `6.1 GET /api/chat/admin/conversations`
+
+**Mô tả:**
+Chứa thông tin tổng quan của một cuộc trò chuyện (conversation), dùng để hiển thị danh sách chat.
+
+**Dữ liệu chính:**
+
+* `id`: ID cuộc trò chuyện
+* `customerName`, `customerPhone`: thông tin khách hàng
+* `handlingAdminName`: admin đang xử lý
+* `lastMessagePreview`: nội dung tin nhắn gần nhất
+* `lastMessageAt`: thời gian tin nhắn gần nhất
+* `unreadCount`: số tin chưa đọc
+
+**Sử dụng:**
+
+```dart
+final conversations = await ApiChatService.getConversations(token);
+```
+
+---
+
+## 2. ChatMessageDto
+
+**File:** `chat_message_dto.dart`
+**Dùng cho:**
+
+* Hiển thị nội dung chat (message list)
+* Realtime (SignalR)
+
+**API liên quan:**
+
+* `6.3 GET /conversations/{conversationId}/messages`
+* `SignalR: chat.message.created`
+
+**Mô tả:**
+Đại diện cho một tin nhắn trong cuộc trò chuyện.
+
+**Dữ liệu quan trọng:**
+
+* `senderType`:
+
+  * `1`: Customer
+  * `2`: Admin
+  * `3`: System
+* `messageType`:
+
+  * `1`: Text message
+  * `3`: Tạo chuyến (Create Ride)
+  * `4`: Cập nhật / Huỷ chuyến
+* `metadataJson`: chứa dữ liệu ride (nếu là messageType 3/4)
+
+**Lưu ý quan trọng:**
+
+* `metadataJson` là **String JSON**, cần parse thủ công
+
+**Helper đã có sẵn:**
+
+```dart
+message.ride
+```
+
+→ trả về `ChatRideCardDto`
+
+---
+
+## 3. ChatRideCardDto
+
+**File:** `chat_ride_card_dto.dart`
+**Dùng cho:**
+
+* Hiển thị card chuyến xe trong chat
+
+**API liên quan:**
+
+* `6.5 POST create-ride`
+* `6.6 PUT update-ride`
+* `6.7 PUT cancel-ride`
+* Message `messageType = 3, 4`
+
+**Mô tả:**
+Chứa snapshot thông tin chuyến xe được embed trong chat message (system message).
+
+**Dữ liệu chính:**
+
+* `rideId`, `code`
+* `status`: trạng thái chuyến
+* `fromAddress`, `toAddress`
+* `pickupTime`
+* `finalPrice`
+* `paymentMethodText`
+* `note`
+
+**Cách dùng:**
+
+```dart
+if (message.messageType == 3 || message.messageType == 4) {
+  final ride = message.ride;
+}
+```
+
+---
+
+## 4. ChatMessagePageDto
+
+**File:** `chat_message_page_dto.dart`
+**Dùng cho:**
+
+* Phân trang message
+
+**API liên quan:**
+
+* `6.3 GET /messages`
+
+**Mô tả:**
+Wrapper cho danh sách message + pagination.
+
+**Dữ liệu:**
+
+* `items`: List<ChatMessageDto>
+* `hasMore`: còn dữ liệu không
+* `nextBeforeMessageId`: dùng để load thêm
+
+**Cách dùng:**
+
+```dart
+final page = await ApiChatService.getMessages(token, conversationId);
+
+messages.addAll(page.items);
+
+if (page.hasMore) {
+  // gọi tiếp với beforeMessageId
+}
+```
+
+---
+
+## 🔥 Flow tổng thể
+
+```text
+1. Load danh sách chat
+   → ChatConversationDto (API 6.1)
+
+2. Mở chat
+   → gọi messages (API 6.3)
+   → ChatMessagePageDto
+
+3. Render UI:
+   - messageType = 1 → bubble text
+   - messageType = 3/4 → parse ChatRideCardDto → render card
+
+4. Realtime:
+   - SignalR push về ChatMessageDto
+```
+
+---
+
+## ⚠️ Lưu ý quan trọng
+
+* Không cần API 6.2 (đã bị loại bỏ)
+* Không cần parse metadataJson thủ công nhiều lần → dùng getter `ride`
+* Không tự add message sau khi send → chờ SignalR push về
+* `senderType` quyết định UI trái/phải/system
+
+---
+
+## ✅ Kết luận
+
+* Models đã cover toàn bộ flow chat admin
+* Tách riêng từng model giúp dễ maintain và mở rộng
+* Dùng đúng theo mapping API để tránh bug parse
+
+---
