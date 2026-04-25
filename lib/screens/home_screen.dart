@@ -11,6 +11,7 @@ import 'status/status_5_screen.dart';
 import 'accountant/withdrawal_history_screen.dart';
 import 'voucher_used_screen.dart';
 import 'chat_to_order/list.dart';
+import 'broker_rides/broker_ride_approval_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,8 +21,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String _adminName = "Lý Tổng!!";
-  String _accessToken = "";
+  String _adminName = 'Admin';
+  String _accessToken = '';
+  int _role = 0;
 
   @override
   void initState() {
@@ -32,8 +34,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadAdminInfo() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _adminName = "Lý Tổng =))";
-      _accessToken = prefs.getString('accessToken') ?? "";
+      _adminName = prefs.getString('fullName')?.trim().isNotEmpty == true
+          ? prefs.getString('fullName')!.trim()
+          : 'Admin';
+      _accessToken = prefs.getString('accessToken') ?? '';
+      _role = prefs.getInt('role') ?? 0;
     });
   }
 
@@ -44,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const LoginScreen()),
-            (route) => false,
+        (route) => false,
       );
     }
   }
@@ -67,9 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Positioned.fill(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.05),
-              ),
+              child: Container(color: Colors.black.withValues(alpha: 0.05)),
             ),
           ),
 
@@ -86,96 +89,114 @@ class _HomeScreenState extends State<HomeScreen> {
               // Danh sách Menu
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
                   physics: const BouncingScrollPhysics(),
                   children: [
                     _sectionHeader("QUẢN LÝ VẬN HÀNH", Colors.red),
 
-                    _buildMenuButton(
-                      context,
-                      title: "Chuyến chưa có tài xế",
-                      subtitle: "Đang chờ điều phối ngay",
-                      icon: Icons.hourglass_empty_rounded,
-                      color: Colors.orange.shade800,
-                      status: 1,
-                    ),
-                    _buildMenuButton(
-                      context,
-                      title: "Đã có tài xế",
-                      subtitle: "Tài xế đã xác nhận đơn",
-                      icon: Icons.assignment_ind_rounded,
-                      color: Colors.blue.shade700,
-                      status: 2,
-                    ),
-                    _buildMenuButton(
-                      context,
-                      title: "Đang di chuyển",
-                      subtitle: "Xe đang trên đường tới đích",
-                      icon: Icons.local_taxi_rounded,
-                      color: Colors.green.shade700,
-                      status: 3,
-                    ),
-                    _buildMenuButton(
-                      context,
-                      title: "Đã hoàn thành",
-                      subtitle: "Lịch sử chuyến thành công",
-                      icon: Icons.check_circle_rounded,
-                      color: Colors.teal.shade700,
-                      status: 4,
-                    ),
-                    _buildMenuButton(
-                      context,
-                      title: "Tin nhắn đặt đơn",
-                      subtitle: "Danh sách đơn đặt bằng tin nhắn",
-                      icon: Icons.chat_bubble,
-                      color: Colors.lightBlue,
-                      status: 5,
-                    ),
-                    _buildMenuButton(
-                      context,
-                      title: "Đã hủy",
-                      subtitle: "Danh sách đơn đã hủy bỏ",
-                      icon: Icons.cancel_rounded,
-                      color: Colors.red.shade900,
-                      status: 6,
-                    ),
-
-                    const SizedBox(height: 15),
-                    _sectionHeader("BÁO CÁO & TÀI CHÍNH", Colors.red),
-
-                    _buildSpecialButton(
-                      context,
-                      title: "Thống kê doanh thu",
-                      subtitle: "Tổng quan hiệu suất kinh doanh",
-                      icon: _assetIconWrapper("lib/assets/icons/bieudo.jpg"),
-                      color: Colors.purple.shade700,
-                      onTap: () => Navigator.push(
+                    if (_role == 3) ...<Widget>[
+                      _buildMenuButton(
                         context,
-                        MaterialPageRoute(builder: (_) => const StatisticsScreen()),
+                        title: "Duyệt đơn tài xế đẩy",
+                        subtitle: "Phê duyệt hoặc từ chối đơn broker chờ admin",
+                        icon: Icons.fact_check_rounded,
+                        color: Colors.red.shade700,
+                        status: 7,
                       ),
-                    ),
-                    _buildSpecialButton(
-                      context,
-                      title: "Lịch sử rút tiền",
-                      subtitle: "Quản lý dòng tiền hệ thống",
-                      icon: _assetIconWrapper("lib/assets/icons/viTien.jpg"),
-                      color: Colors.brown.shade700,
-                      onTap: () => Navigator.push(
+                    ] else ...<Widget>[
+                      _buildMenuButton(
                         context,
-                        MaterialPageRoute(builder: (_) => const WithdrawalHistoryScreen()),
+                        title: "Chuyến chưa có tài xế",
+                        subtitle: "Đang chờ điều phối ngay",
+                        icon: Icons.hourglass_empty_rounded,
+                        color: Colors.orange.shade800,
+                        status: 1,
                       ),
-                    ),
-                    _buildSpecialButton(
-                      context,
-                      title: "Voucher Tết",
-                      subtitle: "Danh sách voucher được sử dụng",
-                      icon: _assetIconWrapper("lib/assets/icons/Lixi.png"),
-                      color: Colors.red.shade700,
-                      onTap: () => Navigator.push(
+                      _buildMenuButton(
                         context,
-                        MaterialPageRoute(builder: (_) => const VoucherUsedScreen()),
+                        title: "Đã có tài xế",
+                        subtitle: "Tài xế đã xác nhận đơn",
+                        icon: Icons.assignment_ind_rounded,
+                        color: Colors.blue.shade700,
+                        status: 2,
                       ),
-                    ),
+                      _buildMenuButton(
+                        context,
+                        title: "Đang di chuyển",
+                        subtitle: "Xe đang trên đường tới đích",
+                        icon: Icons.local_taxi_rounded,
+                        color: Colors.green.shade700,
+                        status: 3,
+                      ),
+                      _buildMenuButton(
+                        context,
+                        title: "Đã hoàn thành",
+                        subtitle: "Lịch sử chuyến thành công",
+                        icon: Icons.check_circle_rounded,
+                        color: Colors.teal.shade700,
+                        status: 4,
+                      ),
+                      _buildMenuButton(
+                        context,
+                        title: "Tin nhắn đặt đơn",
+                        subtitle: "Danh sách đơn đặt bằng tin nhắn",
+                        icon: Icons.chat_bubble,
+                        color: Colors.lightBlue,
+                        status: 5,
+                      ),
+                      _buildMenuButton(
+                        context,
+                        title: "Đã hủy",
+                        subtitle: "Danh sách đơn đã hủy bỏ",
+                        icon: Icons.cancel_rounded,
+                        color: Colors.red.shade900,
+                        status: 6,
+                      ),
+                      const SizedBox(height: 15),
+                      _sectionHeader("BÁO CÁO & TÀI CHÍNH", Colors.red),
+                      _buildSpecialButton(
+                        context,
+                        title: "Thống kê doanh thu",
+                        subtitle: "Tổng quan hiệu suất kinh doanh",
+                        icon: _assetIconWrapper("lib/assets/icons/bieudo.jpg"),
+                        color: Colors.purple.shade700,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const StatisticsScreen(),
+                          ),
+                        ),
+                      ),
+                      _buildSpecialButton(
+                        context,
+                        title: "Lịch sử rút tiền",
+                        subtitle: "Quản lý dòng tiền hệ thống",
+                        icon: _assetIconWrapper("lib/assets/icons/viTien.jpg"),
+                        color: Colors.brown.shade700,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const WithdrawalHistoryScreen(),
+                          ),
+                        ),
+                      ),
+                      _buildSpecialButton(
+                        context,
+                        title: "Voucher Tết",
+                        subtitle: "Danh sách voucher được sử dụng",
+                        icon: _assetIconWrapper("lib/assets/icons/Lixi.png"),
+                        color: Colors.red.shade700,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const VoucherUsedScreen(),
+                          ),
+                        ),
+                      ),
+                    ],
 
                     const SizedBox(height: 25),
                   ],
@@ -204,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
               color: Colors.white,
             ),
             onPressed: () => _logout(context),
-          )
+          ),
         ],
       ),
     );
@@ -214,9 +235,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(25, 10, 25, 25),
-      decoration: const BoxDecoration(
-        color: Colors.transparent,
-      ),
+      decoration: const BoxDecoration(color: Colors.transparent),
       child: Row(
         children: [
           Container(
@@ -225,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -237,7 +256,9 @@ class _HomeScreenState extends State<HomeScreen> {
             child: const CircleAvatar(
               radius: 35,
               backgroundColor: Colors.white,
-              backgroundImage: AssetImage('lib/assets/icons/admin_launcher.png'),
+              backgroundImage: AssetImage(
+                'lib/assets/icons/admin_launcher.png',
+              ),
             ),
           ),
           const SizedBox(width: 20),
@@ -245,7 +266,25 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  _adminName,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
                 const SizedBox(height: 4),
+                Text(
+                  _role == 3
+                      ? 'Admin duyệt đơn tài xế đẩy'
+                      : 'Quản trị hệ thống',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
           ),
@@ -275,9 +314,7 @@ class _HomeScreenState extends State<HomeScreen> {
               fontWeight: FontWeight.w800,
               color: color,
               letterSpacing: 1,
-              shadows: const [
-                Shadow(color: Colors.black45, blurRadius: 2),
-              ],
+              shadows: const [Shadow(color: Colors.black45, blurRadius: 2)],
             ),
           ),
         ],
@@ -300,17 +337,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildMenuButton(
-      BuildContext context, {
-        required String title,
-        required String subtitle,
-        required IconData icon,
-        required Color color,
-        required int status,
-      }) {
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required int status,
+  }) {
     return _cardWrapper(
       onTap: () {
         Widget targetScreen;
         switch (status) {
+          case 7:
+            targetScreen = const BrokerRideApprovalListScreen();
+            break;
           case 1:
             targetScreen = const StatusOneScreen();
             break;
@@ -358,13 +398,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildSpecialButton(
-      BuildContext context, {
-        required String title,
-        required String subtitle,
-        required Widget icon,
-        required Color color,
-        required VoidCallback onTap,
-      }) {
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required Widget icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
     return _cardWrapper(
       onTap: onTap,
       child: ListTile(
@@ -391,22 +431,19 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _cardWrapper({
-    required Widget child,
-    required VoidCallback onTap,
-  }) {
+  Widget _cardWrapper({required Widget child, required VoidCallback onTap}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
+        color: Colors.white.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.amber.withOpacity(0.3),
+          color: Colors.amber.withValues(alpha: 0.3),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -427,7 +464,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Icon(icon, color: color, size: 26),

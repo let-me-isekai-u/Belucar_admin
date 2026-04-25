@@ -85,11 +85,7 @@ class _ChatDetailView extends StatelessWidget {
             ),
             onPressed: () {
               if (provider.currentTab == ChatDetailTab.text) {
-                provider.setTab(
-                  provider.currentRide == null
-                      ? ChatDetailTab.createOrder
-                      : ChatDetailTab.updateOrder,
-                );
+                provider.setTab(ChatDetailTab.createOrder);
               } else {
                 provider.setTab(ChatDetailTab.text);
               }
@@ -103,7 +99,7 @@ class _ChatDetailView extends StatelessWidget {
           if (provider.errorMessage != null)
             Container(
               width: double.infinity,
-              color: Colors.red.withOpacity(0.08),
+              color: Colors.red.withValues(alpha: 0.08),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Text(
                 provider.errorMessage!,
@@ -219,13 +215,16 @@ class _ChatDetailView extends StatelessWidget {
       case ChatDetailTab.updateOrder:
         return UpdateOrderScreen(
           token: provider.token,
-          currentRide: provider.currentRide,
+          rides: provider.rides,
+          latestRideId: provider.currentRide?.rideId,
+          currentRide: provider.selectedRide,
           resolvedRideStatus: provider.resolvedRideStatus,
           isCheckingRideStatus: provider.isCheckingRideStatus,
           canUpdateRide: provider.canUpdateRide,
           canCancelRide: provider.canCancelRide,
           isUpdating: provider.isUpdatingRide,
           isCancelling: provider.isCancellingRide,
+          onSelectRide: provider.selectRide,
           onUpdateRide: (id, data) async {
             final ok = await provider.updateCurrentRide(data);
             if (ok && context.mounted) {

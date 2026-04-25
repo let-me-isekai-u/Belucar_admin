@@ -33,8 +33,21 @@ class ChatDetailProvider extends ChangeNotifier {
   final List<ChatMessageDto> _messages = [];
   List<ChatMessageDto> get messages => List.unmodifiable(_messages);
 
+  final List<ChatRideCardDto> _rides = [];
+  List<ChatRideCardDto> get rides => List.unmodifiable(_rides);
+
   ChatRideCardDto? _currentRide;
   ChatRideCardDto? get currentRide => _currentRide;
+
+  int? _selectedRideId;
+  ChatRideCardDto? get selectedRide {
+    if (_selectedRideId != null) {
+      for (final ride in _rides) {
+        if (ride.rideId == _selectedRideId) return ride;
+      }
+    }
+    return _currentRide;
+  }
 
   bool _isInitialLoading = false;
   bool get isInitialLoading => _isInitialLoading;
@@ -85,6 +98,10 @@ class ChatDetailProvider extends ChangeNotifier {
   /// Trạng thái ride đã được đối soát lại từ 2 API admin list
   int? _resolvedRideStatus;
   int? get resolvedRideStatus => _resolvedRideStatus;
+  final Map<int, int> _resolvedRideStatuses = {};
+  Map<int, int> get resolvedRideStatuses => Map.unmodifiable(
+    _resolvedRideStatuses,
+  );
 
   void safeNotify() {
     if (!_isDisposed) {
@@ -98,33 +115,50 @@ class ChatDetailProvider extends ChangeNotifier {
   ///
   /// nhưng vẫn giữ fallback từ currentRide nếu chưa resolve được
   bool get hasActiveRide {
-    final status = _resolvedRideStatus ?? _currentRide?.status;
-    if (status == null) return false;
-    return status == 1;
+    for (final ride in _rides) {
+      final status = _resolvedRideStatuses[ride.rideId] ?? ride.status;
+      if (status == 1) return true;
+    }
+    return false;
   }
 
   bool get canCreateRide {
-    final ride = _currentRide;
-    final status = _resolvedRideStatus ?? ride?.status;
-
-    if (ride == null) return true;
-    return status == 5;
+    /// Admin được phép tạo nhiều đơn trong cùng một conversation.
+    /// _currentRide chỉ còn dùng để hiển thị/điều chỉnh đơn gần nhất
+    /// ở tab "Đơn hiện tại", không dùng để khóa tab "Tạo đơn".
+    return true;
   }
 
   bool get canUpdateRide {
-    final ride = _currentRide;
+    final ride = selectedRide;
     if (ride == null) return false;
 
-    final status = _resolvedRideStatus ?? ride.status;
-    return status == 1;
+    final status = _resolvedRideStatuses[ride.rideId] ?? ride.status;
+    return isSelectedRideLatest && status == 1;
   }
 
   bool get canCancelRide {
-    final ride = _currentRide;
+    final ride = selectedRide;
     if (ride == null) return false;
 
-    final status = _resolvedRideStatus ?? ride.status;
+    final status = _resolvedRideStatuses[ride.rideId] ?? ride.status;
     return status == 1;
+  }
+
+  bool get isSelectedRideLatest {
+    final ride = selectedRide;
+    final latestRide = _currentRide;
+    if (ride == null || latestRide == null) return false;
+    return ride.rideId == latestRide.rideId;
+  }
+
+  void selectRide(int rideId) {
+    final exists = _rides.any((ride) => ride.rideId == rideId);
+    if (!exists || _selectedRideId == rideId) return;
+
+    _selectedRideId = rideId;
+    _syncSelectedRideResolvedStatus();
+    safeNotify();
   }
 
   /// ================= TAB =================
@@ -291,6 +325,8 @@ class ChatDetailProvider extends ChangeNotifier {
 
       await refreshMessages();
       await _refreshResolvedRideStatus();
+      _selectedRideId = _currentRide?.rideId;
+      _syncSelectedRideResolvedStatus();
 
       setTab(ChatDetailTab.updateOrder);
 
@@ -307,7 +343,7 @@ class ChatDetailProvider extends ChangeNotifier {
 
   /// ================= UPDATE RIDE =================
   Future<bool> updateCurrentRide(Map<String, dynamic> body) async {
-    final ride = _currentRide;
+    final ride = selectedRide;
     if (ride == null) {
       _errorMessage = "Không tìm thấy đơn để cập nhật";
       safeNotify();
@@ -341,7 +377,7 @@ class ChatDetailProvider extends ChangeNotifier {
 
   /// ================= CANCEL RIDE =================
   Future<bool> cancelCurrentRide() async {
-    final ride = _currentRide;
+    final ride = selectedRide;
     if (ride == null) {
       _errorMessage = "Không tìm thấy đơn để huỷ";
       safeNotify();
@@ -616,23 +652,41 @@ class ChatDetailProvider extends ChangeNotifier {
   }
 
   void _updateCurrentRideFromMessages() {
-    _currentRide = _extractLatestRide(_messages);
+    _rides
+      ..clear()
+      ..addAll(_extractRides(_messages));
+    _currentRide = _rides.isNotEmpty ? _rides.first : null;
+
+    if (_selectedRideId == null ||
+        !_rides.any((ride) => ride.rideId == _selectedRideId)) {
+      _selectedRideId = _currentRide?.rideId;
+    }
+
+    _syncSelectedRideResolvedStatus();
   }
 
-  ChatRideCardDto? _extractLatestRide(List<ChatMessageDto> messages) {
+  List<ChatRideCardDto> _extractRides(List<ChatMessageDto> messages) {
+    final extracted = <ChatRideCardDto>[];
+    final seenRideIds = <int>{};
+
     for (final message in messages.reversed) {
       if ((message.messageType == 3 || message.messageType == 4) &&
           message.ride != null) {
-        return message.ride;
+        final ride = message.ride!;
+        if (ride.rideId <= 0 || seenRideIds.contains(ride.rideId)) {
+          continue;
+        }
+        seenRideIds.add(ride.rideId);
+        extracted.add(ride);
       }
     }
-    return null;
+
+    return extracted;
   }
 
   Future<void> _refreshResolvedRideStatus() async {
-    final ride = _currentRide;
-
-    if (ride == null) {
+    if (_rides.isEmpty) {
+      _resolvedRideStatuses.clear();
       _resolvedRideStatus = null;
       return;
     }
@@ -647,43 +701,65 @@ class ChatDetailProvider extends ChangeNotifier {
         pageSize: 100,
       );
 
-      final pendingMatch = _findRideInLookupList(
-        rideId: ride.rideId,
-        code: ride.code,
-        items: pendingItems,
-      );
-
-      if (pendingMatch != null) {
-        _resolvedRideStatus = 1;
-        _isCheckingRideStatus = false;
-        safeNotify();
-        return;
-      }
-
       final cancelledItems = await ApiService.getCanceledRideItems(
         accessToken: token,
         page: 1,
         pageSize: 100,
       );
 
-      final cancelledMatch = _findRideInLookupList(
-        rideId: ride.rideId,
-        code: ride.code,
-        items: cancelledItems,
-      );
+      final resolvedStatuses = <int, int>{};
+      for (final ride in _rides) {
+        final pendingMatch = _findRideInLookupList(
+          rideId: ride.rideId,
+          code: ride.code,
+          items: pendingItems,
+        );
 
-      if (cancelledMatch != null) {
-        _resolvedRideStatus = 5;
-      } else {
-        /// fallback nếu chưa dò thấy
-        _resolvedRideStatus = ride.status;
+        if (pendingMatch != null) {
+          resolvedStatuses[ride.rideId] = 1;
+          continue;
+        }
+
+        final cancelledMatch = _findRideInLookupList(
+          rideId: ride.rideId,
+          code: ride.code,
+          items: cancelledItems,
+        );
+
+        if (cancelledMatch != null) {
+          resolvedStatuses[ride.rideId] = 5;
+        } else {
+          resolvedStatuses[ride.rideId] = ride.status;
+        }
       }
+
+      _resolvedRideStatuses
+        ..clear()
+        ..addAll(resolvedStatuses);
+      _syncSelectedRideResolvedStatus();
     } catch (_) {
-      _resolvedRideStatus = ride.status;
+      _resolvedRideStatuses
+        ..clear()
+        ..addEntries(
+          _rides.map(
+            (ride) => MapEntry(ride.rideId, ride.status),
+          ),
+        );
+      _syncSelectedRideResolvedStatus();
     } finally {
       _isCheckingRideStatus = false;
       safeNotify();
     }
+  }
+
+  void _syncSelectedRideResolvedStatus() {
+    final ride = selectedRide;
+    if (ride == null) {
+      _resolvedRideStatus = null;
+      return;
+    }
+
+    _resolvedRideStatus = _resolvedRideStatuses[ride.rideId] ?? ride.status;
   }
 
   AdminRideLookupModel? _findRideInLookupList({

@@ -6,6 +6,8 @@ import '../../../services/api_service.dart';
 
 class UpdateOrderScreen extends StatefulWidget {
   final String token;
+  final List<ChatRideCardDto> rides;
+  final int? latestRideId;
   final ChatRideCardDto? currentRide;
   final int? resolvedRideStatus;
   final bool isCheckingRideStatus;
@@ -13,12 +15,15 @@ class UpdateOrderScreen extends StatefulWidget {
   final bool canCancelRide;
   final bool isUpdating;
   final bool isCancelling;
+  final ValueChanged<int> onSelectRide;
   final Future<void> Function(int id, Map<String, dynamic> body) onUpdateRide;
   final Future<void> Function(int id) onCancelRide;
 
   const UpdateOrderScreen({
     super.key,
     required this.token,
+    required this.rides,
+    required this.latestRideId,
     required this.currentRide,
     required this.resolvedRideStatus,
     required this.isCheckingRideStatus,
@@ -26,6 +31,7 @@ class UpdateOrderScreen extends StatefulWidget {
     required this.canCancelRide,
     required this.isUpdating,
     required this.isCancelling,
+    required this.onSelectRide,
     required this.onUpdateRide,
     required this.onCancelRide,
   });
@@ -125,6 +131,11 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
 
   bool get _isCancelled => _effectiveStatus == 5;
 
+  bool get _isLatestRide =>
+      widget.currentRide != null &&
+      widget.latestRideId != null &&
+      widget.currentRide!.rideId == widget.latestRideId;
+
   Future<void> _loadProvinces() async {
     setState(() => _isLoadingProvince = true);
     final data = await ApiService.getRideCountByProvince(widget.token);
@@ -199,6 +210,10 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (widget.rides.length > 1) ...[
+            _buildRideSelector(),
+            const SizedBox(height: 16),
+          ],
           _buildSummaryCard(ride, _isCancelled),
           const SizedBox(height: 16),
 
@@ -229,6 +244,8 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
               ),
             ),
 
+          if (!_isCancelled && !_isLatestRide) _buildOldRideNotice(),
+
           if (!_isCancelled && !_isEditing) _buildMainActions(),
 
           if (_isEditing) ...[
@@ -247,6 +264,25 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
   }
 
   Widget _buildMainActions() {
+    if (!_isLatestRide) {
+      return SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: widget.canCancelRide && !_isBusy ? _submitCancel : null,
+          icon: const Icon(Icons.cancel_outlined, size: 18),
+          label: const Text("HỦY ĐƠN CŨ"),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.redAccent,
+            side: const BorderSide(color: Colors.redAccent),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Row(
       children: [
         Expanded(
@@ -280,6 +316,116 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildRideSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "DANH SÁCH ĐƠN",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: beluDarkBlue,
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 112,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: widget.rides.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final ride = widget.rides[index];
+              final isSelected = widget.currentRide?.rideId == ride.rideId;
+              final isLatest = widget.latestRideId == ride.rideId;
+
+              return InkWell(
+                onTap: () => widget.onSelectRide(ride.rideId),
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  width: 180,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.blue.shade50 : Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSelected ? beluDarkBlue : Colors.grey.shade300,
+                      width: isSelected ? 1.5 : 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (isLatest)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            "Mới nhất",
+                            style: TextStyle(
+                              color: Colors.green.shade800,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      Text(
+                        ride.code,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Expanded(
+                        child: Text(
+                          ride.pickupTime == null
+                              ? "Chưa có giờ đón"
+                              : DateFormat('HH:mm dd/MM').format(ride.pickupTime!),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOldRideNotice() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber.shade200),
+      ),
+      child: const Text(
+        "Đây là đơn cũ. Bạn chỉ có thể hủy đơn này, không được chỉnh sửa.",
+        style: TextStyle(fontSize: 13),
+      ),
     );
   }
 
@@ -570,7 +716,10 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+          ),
         ],
       ),
       child: Column(
@@ -700,7 +849,7 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
   }
 
   String _formatMoney(double value) =>
-      NumberFormat('#,###', 'vi_VN').format(value) + ' đ';
+      '${NumberFormat('#,###', 'vi_VN').format(value)} đ';
 
   String _statusText(int status) {
     switch (status) {

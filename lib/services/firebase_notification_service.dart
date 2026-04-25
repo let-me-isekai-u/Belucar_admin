@@ -39,7 +39,15 @@ class FirebaseNotificationService {
       sound: true,
     );
 
-    // 3. Local notification (iOS)
+    // 3. 👉 SUBSCRIBE TOPIC ADMIN
+    try {
+      await _messaging.subscribeToTopic("admin");
+      debugPrint('✅ Subscribed to topic: admin');
+    } catch (e) {
+      debugPrint('❌ Subscribe topic error: $e');
+    }
+
+    // 4. Local notification (iOS)
     const iosInit = DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
@@ -50,7 +58,7 @@ class FirebaseNotificationService {
       const InitializationSettings(iOS: iosInit),
     );
 
-    // 4. Listen message
+    // 5. Listen message
     FirebaseMessaging.onMessage.listen(_onMessage);
     FirebaseMessaging.onMessageOpenedApp.listen(_onMessageOpened);
   }

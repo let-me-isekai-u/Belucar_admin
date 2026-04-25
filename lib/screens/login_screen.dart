@@ -6,6 +6,7 @@ import '../services/firebase_notification_service.dart';
 import 'home_screen.dart';
 
 import 'accountant/withdrawal_confirm_screen.dart';
+import 'broker_rides/broker_ride_approval_list_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -28,8 +29,6 @@ class _LoginScreenState extends State<LoginScreen> {
       _showSnackBar("Vui lòng nhập đầy đủ thông tin", Colors.orange);
       return;
     }
-
-
 
     setState(() => _isLoading = true);
 
@@ -56,21 +55,23 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setInt('userId', data['id'] ?? 0);
         await prefs.setInt('role', role);
 
-
         // Lưu cả fcmToken vào máy nếu bạn cần dùng sau này (tùy chọn)
         if (fcmToken != null) {
           await prefs.setString('fcmToken', fcmToken);
         }
 
+        if (!mounted) return;
+
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
-            builder: (_) =>
-            role == 2
-                ? const WithdrawalConfirmList() // kế toán
-                : const HomeScreen(),           // admin
+            builder: (_) => role == 2
+                ? const WithdrawalConfirmList()
+                : role == 3
+                ? const BrokerRideApprovalListScreen()
+                : const HomeScreen(),
           ),
-              (route) => false,
+          (route) => false,
         );
       } else {
         // Có thể backend trả về lỗi cụ thể trong body, bạn có thể decode để hiện chính xác hơn
@@ -82,14 +83,13 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-
   }
 
   // ... Các hàm _showSnackBar và build giữ nguyên ...
   void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 
   @override
@@ -116,7 +116,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: InputDecoration(
                     labelText: "Số điện thoại",
                     prefixIcon: const Icon(Icons.phone),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -128,10 +130,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelText: "Mật khẩu",
                     prefixIcon: const Icon(Icons.lock),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -142,13 +151,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
                     ),
                     child: _isLoading
                         ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text("ĐĂNG NHẬP", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        : const Text(
+                            "ĐĂNG NHẬP",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ),
               ],
