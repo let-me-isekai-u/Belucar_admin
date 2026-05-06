@@ -5,7 +5,7 @@ import '../models/ride_count_models.dart';
 import '../models/admin_ride_lookup_model.dart';
 
 class ApiService {
-  static const String baseUrl = "https://belucar.com/api/adminapi";
+  static const String baseUrl = "https://xeghepdongduong.com/api/adminapi";
 
   // Header chung cho các yêu cầu JSON
   static Map<String, String> _getHeaders(String? token) {
@@ -87,19 +87,19 @@ class ApiService {
 
   static Future<http.Response> getStatisticalDay({required String date}) async {
     // Nếu Postman của bạn không có chữ /api/, hãy xóa nó đi ở dưới
-    final url = Uri.parse('https://belucar.com/api/adminapi/statistical-day?date=$date');
+    final url = Uri.parse('https://xeghepdongduong.com/api/adminapi/statistical-day?date=$date');
     return await http.get(url);
   }
 
   // 9. Thống kê theo tháng (Không Token)
   static Future<http.Response> getStatisticalMonth({required int month, required int year}) async {
-    final url = Uri.parse('https://belucar.com/api/adminapi/statistical-month?month=$month&year=$year');
+    final url = Uri.parse('https://xeghepdongduong.com/api/adminapi/statistical-month?month=$month&year=$year');
     return await http.get(url);
   }
 
   // 10. Thống kê theo năm (Không Token)
   static Future<http.Response> getStatisticalYear({required int year}) async {
-    final url = Uri.parse('https://belucar.com/api/adminapi/statistical-year?year=$year');
+    final url = Uri.parse('https://xeghepdongduong.com/api/adminapi/statistical-year?year=$year');
     return await http.get(url);
   }
 
@@ -109,7 +109,7 @@ class ApiService {
     int page = 1,
     int pageSize = 20,
   }) async {
-    final url = Uri.parse("https://belucar.com/api/adminapi/withdrawals?page=$page&pageSize=$pageSize");
+    final url = Uri.parse("https://xeghepdongduong.com/api/adminapi/withdrawals?page=$page&pageSize=$pageSize");
     return await http.get(url, headers: _getHeaders(accessToken));
   }
 
@@ -119,7 +119,7 @@ class ApiService {
     int page = 1,
     int pageSize = 20,
   }) async {
-    final url = Uri.parse("https://belucar.com/api/adminapi/withdrawal/history?page=$page&pageSize=$pageSize");
+    final url = Uri.parse("https://xeghepdongduong.com/api/adminapi/withdrawal/history?page=$page&pageSize=$pageSize");
     return await http.get(url, headers: _getHeaders(accessToken));
   }
 
@@ -129,7 +129,7 @@ class ApiService {
     required int withdrawalId,
   }) async {
     final url = Uri.parse(
-      "https://belucar.com/api/adminapi/withdrawal/accept/$withdrawalId",
+      "https://xeghepdongduong.com/api/adminapi/withdrawal/accept/$withdrawalId",
     );
 
     return await http.post(
@@ -145,7 +145,7 @@ class ApiService {
     required String reasonCancel,
   }) async {
     final url = Uri.parse(
-      "https://belucar.com/api/adminapi/withdrawal/reject/$withdrawalId",
+      "https://xeghepdongduong.com/api/adminapi/withdrawal/reject/$withdrawalId",
     );
 
     return await http.post(
@@ -159,7 +159,7 @@ class ApiService {
 
   //lấy danh sách voucher Tết được dùng
   static Future<List<VoucherStatisticModel>> getVoucherStatistics() async {
-    const url = 'https://belucar.com/api/adminapi/voucher-statistics';
+    const url = 'https://xeghepdongduong.com/api/adminapi/voucher-statistics';
 
     final response = await http.get(Uri.parse(url));
 
@@ -178,7 +178,7 @@ class ApiService {
 
   // lấy danh sách tỉnh/thành
   static Future<List<ProvinceRideCountDto>> getRideCountByProvince(String token) async {
-    final url = Uri.parse("https://belucar.com/api/provinceapi/active");
+    final url = Uri.parse("https://xeghepdongduong.com/api/provinceapi/active");
 
     try {
       final res = await http.get(
@@ -216,7 +216,7 @@ class ApiService {
       int provinceId,
       ) async {
     final url = Uri.parse(
-      "https://belucar.com/api/provinceapi/district/$provinceId",
+      "https://xeghepdongduong.com/api/provinceapi/district/$provinceId",
     );
 
     try {

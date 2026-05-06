@@ -5,7 +5,7 @@ import '../../services/api_chat_service.dart';
 import '../../services/signalr_service.dart';
 
 class ChatConversationListProvider extends ChangeNotifier {
-  static const String _chatHubUrl = 'https://belucar.com/hubs/chat';
+  static const String _chatHubUrl = 'https://xeghepdongduong.com/hubs/chat';
   static const String _newMessageEventName = 'chat.message.created';
   static const String _conversationChangedEventName =
       'chat.conversation.changed';

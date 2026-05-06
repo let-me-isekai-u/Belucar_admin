@@ -6,7 +6,7 @@ import '../models/chat/chat_message_page_dto.dart';
 import '../models/chat/chat_ride_card_dto.dart';
 
 class ApiChatService {
-  static const String baseUrl = "https://belucar.com/api/chat/admin";
+  static const String baseUrl = "https://xeghepdongduong.com/api/chat/admin";
 
   /// ================= SAFE DECODE =================
   static dynamic safeDecode(String? body) {

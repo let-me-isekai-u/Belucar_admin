@@ -1,23 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 
-import 'services/firebase_notification_service.dart';
 import 'screens/splash_screen.dart';
+import 'services/firebase_notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Init Firebase (BẮT BUỘC)
-  await Firebase.initializeApp();
-
-  // 2. Register background handler (BẮT BUỘC)
-  FirebaseMessaging.onBackgroundMessage(
-    FirebaseNotificationService.firebaseMessagingBackgroundHandler,
-  );
-
-  // 3. Init notification service (permission + listener)
-  await FirebaseNotificationService.init();
+  await FirebaseNotificationService.configure();
 
   runApp(const MyApp());
 }
