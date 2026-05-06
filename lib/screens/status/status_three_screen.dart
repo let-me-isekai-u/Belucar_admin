@@ -23,6 +23,7 @@ class _StatusThreeScreenState extends State<StatusThreeScreen> {
 
   final List<RideModel> _allRides = [];
   Map<String, List<RideModel>> _groupedRides = LinkedHashMap();
+  int _userRole = 0;
 
   int _currentPage = 1;
   bool _hasNext = true;
@@ -46,7 +47,11 @@ class _StatusThreeScreenState extends State<StatusThreeScreen> {
   void _groupData() {
     final Map<String, List<RideModel>> tempGroups = LinkedHashMap();
 
-    for (var ride in _allRides) {
+    final ridesForDisplay = _userRole == 3
+        ? _allRides.where((ride) => ride.rideSource == 2)
+        : _allRides;
+
+    for (var ride in ridesForDisplay) {
       try {
         final dateTime = DateTime.parse(ride.createdDate);
         final dateKey = DateFormat('dd/MM/yyyy').format(dateTime);
@@ -76,6 +81,7 @@ class _StatusThreeScreenState extends State<StatusThreeScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('accessToken') ?? '';
+      _userRole = prefs.getInt('role') ?? 0;
 
       final response = await ApiService.getProcessingRides(
         accessToken: token,

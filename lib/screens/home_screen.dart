@@ -109,6 +109,22 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Colors.red.shade700,
                         status: 7,
                       ),
+                      _buildMenuButton(
+                        context,
+                        title: "Đã có tài xế nhận",
+                        subtitle: "Theo dõi đơn tài xế đã được nhận",
+                        icon: Icons.assignment_ind_rounded,
+                        color: Colors.blue.shade700,
+                        status: 2,
+                      ),
+                      _buildMenuButton(
+                        context,
+                        title: "Đang di chuyển",
+                        subtitle: "Theo dõi đơn tài xế đang di chuyển",
+                        icon: Icons.local_taxi_rounded,
+                        color: Colors.green.shade700,
+                        status: 3,
+                      ),
                     ] else ...<Widget>[
                       _buildMenuButton(
                         context,
