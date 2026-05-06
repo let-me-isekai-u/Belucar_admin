@@ -2,11 +2,14 @@ import 'dart:collection';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/paged_response_model.dart';
 import '../../models/ride_model.dart';
 import '../../services/api_service.dart';
+import '../../providers/role1/ride_detail_role1_provider.dart';
+import '../role1/ride_detail_view.dart';
 
 class StatusTwoScreen extends StatefulWidget {
   const StatusTwoScreen({super.key});
@@ -74,7 +77,6 @@ class _StatusTwoScreenState extends State<StatusTwoScreen> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('accessToken') ?? '';
 
-      // STATUS 2: ĐÃ CÓ TÀI XẾ NHẬN
       final response = await ApiService.getAcceptedRides(
         accessToken: token,
         page: _currentPage,
@@ -89,6 +91,8 @@ class _StatusTwoScreenState extends State<StatusTwoScreen> {
               (item) => RideModel.fromJson(item as Map<String, dynamic>),
         );
 
+        if (!mounted) return;
+
         setState(() {
           _allRides.addAll(pagedData.data);
           _hasNext = pagedData.hasNext;
@@ -101,6 +105,27 @@ class _StatusTwoScreenState extends State<StatusTwoScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _goToRideDetail(RideModel ride) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken') ?? '';
+
+    if (!mounted) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider(
+          create: (_) => RideDetailRole1Provider(),
+          child: RideDetailView(
+            accessToken: token,
+            rideId: ride.rideId,
+            rideSource: ride.rideSource == 2 ? 2 : 1,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -124,8 +149,7 @@ class _StatusTwoScreenState extends State<StatusTwoScreen> {
         child: _isLoading && _allRides.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : _allRides.isEmpty
-            ? const Center(
-            child: Text("Chưa có chuyến nào được nhận"))
+            ? const Center(child: Text("Chưa có chuyến nào được nhận"))
             : ListView.builder(
           controller: _scrollController,
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -145,22 +169,28 @@ class _StatusTwoScreenState extends State<StatusTwoScreen> {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.blue[700],
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.calendar_today,
-                                  size: 14, color: Colors.white),
+                              const Icon(
+                                Icons.calendar_today,
+                                size: 14,
+                                color: Colors.white,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 "Ngày $date",
                                 style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: Colors.white),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: Colors.white,
+                                ),
                               ),
                             ],
                           ),
@@ -184,16 +214,13 @@ class _StatusTwoScreenState extends State<StatusTwoScreen> {
                       ],
                     ),
                   ),
-                  ...ridesOfDate
-                      .map((ride) => _buildRideCard(ride))
-                      .toList(),
+                  ...ridesOfDate.map((ride) => _buildRideCard(ride)),
                 ],
               );
             } else {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: 20),
-                child:
-                Center(child: CircularProgressIndicator()),
+                child: Center(child: CircularProgressIndicator()),
               );
             }
           },
@@ -206,82 +233,116 @@ class _StatusTwoScreenState extends State<StatusTwoScreen> {
     final currencyFormat =
     NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      elevation: 3,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(ride.code,
-                    style: const TextStyle(
+    return InkWell(
+      onTap: () => _goToRideDetail(ride),
+      borderRadius: BorderRadius.circular(10),
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        elevation: 3,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      ride.code,
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.blue)),
-                Container(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(5),
+                        color: Colors.blue,
+                      ),
+                    ),
                   ),
-                  child: const Text("Đã nhận",
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: const Text(
+                      "Đã nhận",
                       style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue,
-                          fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-            const Divider(),
-            _buildLocationRow(Icons.radio_button_checked, Colors.green,
-                "Điểm đón", ride.fromAddress),
-            const SizedBox(height: 8),
-            _buildLocationRow(Icons.location_on, Colors.red, "Điểm đến",
-                ride.toAddress),
-            const Divider(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("Giá cước",
-                        style:
-                        TextStyle(fontSize: 11, color: Colors.grey)),
-                    Text(currencyFormat.format(ride.price),
+                        fontSize: 12,
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(),
+              _buildLocationRow(
+                Icons.radio_button_checked,
+                Colors.green,
+                "Điểm đón",
+                ride.fromAddress,
+              ),
+              const SizedBox(height: 8),
+              _buildLocationRow(
+                Icons.location_on,
+                Colors.red,
+                "Điểm đến",
+                ride.toAddress,
+              ),
+              const Divider(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Giá cước",
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                      Text(
+                        currencyFormat.format(ride.price),
                         style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black54)),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    const Text("Thời gian đặt chuyến",
-                        style:
-                        TextStyle(fontSize: 11, color: Colors.grey)),
-                    Text(ride.pickupTime,
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const Text(
+                        "Thời gian đặt chuyến",
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                      Text(
+                        ride.pickupTime,
                         style: const TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 13)),
-                  ],
-                ),
-              ],
-            ),
-          ],
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildLocationRow(
-      IconData icon, Color color, String label, String address) {
+      IconData icon,
+      Color color,
+      String label,
+      String address,
+      ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -290,13 +351,12 @@ class _StatusTwoScreenState extends State<StatusTwoScreen> {
         Expanded(
           child: RichText(
             text: TextSpan(
-              style:
-              const TextStyle(color: Colors.black, fontSize: 13),
+              style: const TextStyle(color: Colors.black, fontSize: 13),
               children: [
                 TextSpan(
-                    text: "$label: ",
-                    style:
-                    const TextStyle(fontWeight: FontWeight.bold)),
+                  text: "$label: ",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 TextSpan(text: address),
               ],
             ),

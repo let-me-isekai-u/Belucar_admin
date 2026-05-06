@@ -1,5 +1,6 @@
 class RideModel {
   final int rideId;
+  final int rideSource;
   final String code;
   final String createdDate;
   final String pickupTime;
@@ -11,6 +12,7 @@ class RideModel {
 
   RideModel({
     required this.rideId,
+    required this.rideSource,
     required this.code,
     required this.createdDate,
     required this.pickupTime,
@@ -23,7 +25,8 @@ class RideModel {
 
   factory RideModel.fromJson(Map<String, dynamic> json) {
     return RideModel(
-      rideId: json['rideId'] ?? 0,
+      rideId: json['id'] ?? json['rideId'] ?? 0,
+      rideSource: json['rideSource'] ?? 0,
       code: json['code'] ?? '',
       createdDate: json['createdDate'] ?? '',
       pickupTime: json['pickupTime'] ?? '',

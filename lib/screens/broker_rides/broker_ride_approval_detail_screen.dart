@@ -129,7 +129,7 @@ class _BrokerRideApprovalDetailScreenState
   }
 
   Future<void> _showRejectDialog() async {
-    final TextEditingController reasonController = TextEditingController();
+    String rejectReason = '';
 
     final String? reason = await showDialog<String>(
       context: context,
@@ -138,8 +138,8 @@ class _BrokerRideApprovalDetailScreenState
         return AlertDialog(
           title: const Text('Từ chối đơn tài xế đẩy'),
           content: TextField(
-            controller: reasonController,
             maxLines: 3,
+            onChanged: (String value) => rejectReason = value,
             decoration: const InputDecoration(
               hintText: 'Nhập lý do từ chối',
               border: OutlineInputBorder(),
@@ -152,7 +152,7 @@ class _BrokerRideApprovalDetailScreenState
             ),
             FilledButton(
               onPressed: () {
-                final value = reasonController.text.trim();
+                final value = rejectReason.trim();
                 if (value.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -171,8 +171,6 @@ class _BrokerRideApprovalDetailScreenState
         );
       },
     );
-
-    reasonController.dispose();
 
     if (reason == null || reason.isEmpty) return;
 

@@ -1,17 +1,18 @@
-import 'dart:ui'; // Quan trọng để dùng ImageFilter
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'accountant/withdrawal_history_screen.dart';
+import 'broker_rides/broker_ride_approval_list_screen.dart';
+import 'chat_to_order/list.dart';
 import 'login_screen.dart';
 import 'statistics_screen.dart';
-import 'status/status_one_screen.dart';
-import 'status/status_two_screen.dart';
-import 'status/status_three_screen.dart';
 import 'status/status_4_screen.dart';
 import 'status/status_5_screen.dart';
-import 'accountant/withdrawal_history_screen.dart';
-import 'voucher_used_screen.dart';
-import 'chat_to_order/list.dart';
-import 'broker_rides/broker_ride_approval_list_screen.dart';
+import 'status/status_one_screen.dart';
+import 'status/status_three_screen.dart';
+import 'status/status_two_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -33,10 +34,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadAdminInfo() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+
     setState(() {
-      _adminName = prefs.getString('fullName')?.trim().isNotEmpty == true
-          ? prefs.getString('fullName')!.trim()
-          : 'Admin';
+      final fullName = prefs.getString('fullName') ?? '';
+      _adminName = fullName.trim().isNotEmpty ? fullName.trim() : 'Admin';
       _accessToken = prefs.getString('accessToken') ?? '';
       _role = prefs.getInt('role') ?? 0;
     });
@@ -45,13 +47,23 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _logout(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
-    if (context.mounted) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
-    }
+
+    if (!context.mounted) return;
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+    );
+  }
+
+  void _showFeatureComingSoon(BuildContext context, String title) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$title hiện chưa sẵn sàng hoặc file màn hình đang lỗi.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -59,7 +71,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // Lớp nền
           Positioned.fill(
             child: Image.asset(
               'lib/assets/belucar_summer_splash.png',
@@ -67,26 +78,19 @@ class _HomeScreenState extends State<HomeScreen> {
               filterQuality: FilterQuality.high,
             ),
           ),
-
-          // Lớp blur + overlay nhẹ
           Positioned.fill(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-              child: Container(color: Colors.black.withValues(alpha: 0.05)),
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.05),
+              ),
             ),
           ),
-
-          // Nội dung chính của App
           Column(
             children: [
               _buildCustomAppBar(context),
-
-              // Header Chào mừng
               _buildHeaderWelcome(),
-
               const SizedBox(height: 10),
-
-              // Danh sách Menu
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.symmetric(
@@ -96,7 +100,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   physics: const BouncingScrollPhysics(),
                   children: [
                     _sectionHeader("QUẢN LÝ VẬN HÀNH", Colors.red),
-
                     if (_role == 3) ...<Widget>[
                       _buildMenuButton(
                         context,
@@ -183,21 +186,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-                      _buildSpecialButton(
-                        context,
-                        title: "Voucher Tết",
-                        subtitle: "Danh sách voucher được sử dụng",
-                        icon: _assetIconWrapper("lib/assets/icons/Lixi.png"),
-                        color: Colors.red.shade700,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const VoucherUsedScreen(),
-                          ),
-                        ),
-                      ),
-                    ],
 
+                    ],
                     const SizedBox(height: 25),
                   ],
                 ),
@@ -209,7 +199,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Widget AppBar tùy chỉnh để trong suốt hòa vào background
   Widget _buildCustomAppBar(BuildContext context) {
     return Container(
       padding: EdgeInsets.only(
@@ -322,7 +311,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Widget bọc icon asset cho thống nhất
   Widget _assetIconWrapper(String path) {
     return Container(
       width: 40,
@@ -337,13 +325,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildMenuButton(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required int status,
-  }) {
+      BuildContext context, {
+        required String title,
+        required String subtitle,
+        required IconData icon,
+        required Color color,
+        required int status,
+      }) {
     return _cardWrapper(
       onTap: () {
         Widget targetScreen;
@@ -372,6 +360,7 @@ class _HomeScreenState extends State<HomeScreen> {
           default:
             return;
         }
+
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => targetScreen),
@@ -398,13 +387,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildSpecialButton(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required Widget icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
+      BuildContext context, {
+        required String title,
+        required String subtitle,
+        required Widget icon,
+        required Color color,
+        required VoidCallback onTap,
+      }) {
     return _cardWrapper(
       onTap: onTap,
       child: ListTile(
@@ -431,7 +420,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _cardWrapper({required Widget child, required VoidCallback onTap}) {
+  Widget _cardWrapper({
+    required Widget child,
+    required VoidCallback onTap,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(

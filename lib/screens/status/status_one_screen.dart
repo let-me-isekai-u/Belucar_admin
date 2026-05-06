@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/paged_response_model.dart';
 import '../../models/ride_model.dart';
 import '../../services/api_service.dart';
+import '../../providers/role1/ride_detail_role1_provider.dart';
+import '../role1/ride_detail_view.dart';
 
 class StatusOneScreen extends StatefulWidget {
   const StatusOneScreen({super.key});
@@ -83,6 +86,27 @@ class _StatusOneScreenState extends State<StatusOneScreen> {
     }
   }
 
+  Future<void> _goToRideDetail(RideModel ride) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken') ?? '';
+
+    if (!mounted) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider(
+          create: (_) => RideDetailRole1Provider(),
+          child: RideDetailView(
+            accessToken: token,
+            rideId: ride.rideId,
+            rideSource: ride.rideSource,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -126,87 +150,113 @@ class _StatusOneScreenState extends State<StatusOneScreen> {
     final currencyFormat =
     NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      elevation: 3,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  ride.code,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, color: Colors.orange),
-                ),
-                Container(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(5),
+    return InkWell(
+      onTap: () => _goToRideDetail(ride),
+      borderRadius: BorderRadius.circular(10),
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        elevation: 3,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      ride.code,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange,
+                      ),
+                    ),
                   ),
-                  child: const Text(
-                    "Chờ nhận",
-                    style: TextStyle(
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: const Text(
+                      "Chờ nhận",
+                      style: TextStyle(
                         fontSize: 12,
                         color: Colors.orange,
-                        fontWeight: FontWeight.bold),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const Divider(),
-            _buildLocationRow(Icons.radio_button_checked, Colors.green,
-                "Điểm đón", ride.fromAddress),
-            const SizedBox(height: 8),
-            _buildLocationRow(
-                Icons.location_on, Colors.red, "Điểm đến", ride.toAddress),
-            const Divider(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("Giá cước",
-                        style:
-                        TextStyle(fontSize: 12, color: Colors.grey)),
-                    Text(
-                      currencyFormat.format(ride.price),
-                      style: const TextStyle(
+                ],
+              ),
+              const Divider(),
+              _buildLocationRow(
+                Icons.radio_button_checked,
+                Colors.green,
+                "Điểm đón",
+                ride.fromAddress,
+              ),
+              const SizedBox(height: 8),
+              _buildLocationRow(
+                Icons.location_on,
+                Colors.red,
+                "Điểm đến",
+                ride.toAddress,
+              ),
+              const Divider(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Giá cước",
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      Text(
+                        currencyFormat.format(ride.price),
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.orange),
-                    ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    const Text("Thời gian đón",
-                        style:
-                        TextStyle(fontSize: 12, color: Colors.grey)),
-                    Text(
-                      ride.pickupTime,
-                      style: const TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
+                          color: Colors.orange,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const Text(
+                        "Thời gian đón",
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      Text(
+                        ride.pickupTime,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildLocationRow(
-      IconData icon, Color color, String label, String address) {
+      IconData icon,
+      Color color,
+      String label,
+      String address,
+      ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -215,13 +265,12 @@ class _StatusOneScreenState extends State<StatusOneScreen> {
         Expanded(
           child: RichText(
             text: TextSpan(
-              style:
-              const TextStyle(color: Colors.black, fontSize: 13),
+              style: const TextStyle(color: Colors.black, fontSize: 13),
               children: [
                 TextSpan(
-                    text: "$label: ",
-                    style:
-                    const TextStyle(fontWeight: FontWeight.bold)),
+                  text: "$label: ",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 TextSpan(text: address),
               ],
             ),

@@ -1,252 +1,128 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../models/voucher_statistic_model.dart';
-import '../models/ride_count_models.dart';
+
 import '../models/admin_ride_lookup_model.dart';
+import '../models/voucher_statistic_model.dart';
 
 class ApiService {
-  static const String baseUrl = "https://xeghepdongduong.com/api/adminapi";
+  static const String baseUrl = "https://xeghepdongduong.com/api";
 
-  // Header chung cho các yêu cầu JSON
   static Map<String, String> _getHeaders(String? token) {
-    Map<String, String> headers = {
+    final headers = <String, String>{
       "Content-Type": "application/json",
       "Accept": "application/json",
     };
+
     if (token != null && token.isNotEmpty) {
       headers["Authorization"] = "Bearer $token";
     }
+
     return headers;
   }
 
-  // 1. API ĐĂNG NHẬP (POST)
   static Future<http.Response> login({
     required String phone,
     required String password,
     String? deviceToken,
   }) async {
-    final url = Uri.parse("$baseUrl/login");
-    final body = jsonEncode({
-      "phone": phone,
-      "password": password,
-      "deviceToken": deviceToken ?? "",
-    });
+    final url = Uri.parse("$baseUrl/adminapi/login");
 
-    return await http.post(url, headers: _getHeaders(null), body: body);
+    return await http.post(
+      url,
+      headers: _getHeaders(null),
+      body: jsonEncode({
+        "phone": phone,
+        "password": password,
+        "deviceToken": deviceToken ?? "",
+      }),
+    );
   }
 
-  // 2. API LẤY DANH SÁCH CHUYẾN CHƯA CÓ TÀI XẾ (Pending - Status 1)
+  static Future<http.Response> refreshToken({
+    required String refreshToken,
+  }) async {
+    final url = Uri.parse("$baseUrl/adminapi/refresh-token");
+
+    return await http.post(
+      url,
+      headers: _getHeaders(null),
+      body: jsonEncode({
+        "refreshToken": refreshToken,
+      }),
+    );
+  }
+
   static Future<http.Response> getPendingRides({
     required String accessToken,
     int page = 1,
     int pageSize = 20,
   }) async {
-    final url = Uri.parse("$baseUrl/rides/pending?page=$page&pageSize=$pageSize");
+    final url = Uri.parse(
+      "$baseUrl/adminapi/rides/pending?page=$page&pageSize=$pageSize",
+    );
+
     return await http.get(url, headers: _getHeaders(accessToken));
   }
 
-  // 3. API LẤY DANH SÁCH CHUYẾN ĐÃ CÓ TÀI XẾ NHẬN (Accept - Status 2)
   static Future<http.Response> getAcceptedRides({
     required String accessToken,
     int page = 1,
     int pageSize = 20,
   }) async {
-    final url = Uri.parse("$baseUrl/rides/accept?page=$page&pageSize=$pageSize");
+    final url = Uri.parse(
+      "$baseUrl/adminapi/rides/accept?page=$page&pageSize=$pageSize",
+    );
+
     return await http.get(url, headers: _getHeaders(accessToken));
   }
 
-  // 4. API LẤY DANH SÁCH CHUYẾN ĐANG DI CHUYỂN (Process - Status 3)
   static Future<http.Response> getProcessingRides({
     required String accessToken,
     int page = 1,
     int pageSize = 20,
   }) async {
-    final url = Uri.parse("$baseUrl/rides/process?page=$page&pageSize=$pageSize");
+    final url = Uri.parse(
+      "$baseUrl/adminapi/rides/process?page=$page&pageSize=$pageSize",
+    );
+
     return await http.get(url, headers: _getHeaders(accessToken));
   }
 
-  // 5. API LẤY DANH SÁCH CHUYẾN ĐÃ HOÀN THÀNH (Success - Status 4)
   static Future<http.Response> getCompletedRides({
     required String accessToken,
     int page = 1,
     int pageSize = 20,
   }) async {
-    final url = Uri.parse("$baseUrl/rides/success?page=$page&pageSize=$pageSize");
+    final url = Uri.parse(
+      "$baseUrl/adminapi/rides/success?page=$page&pageSize=$pageSize",
+    );
+
     return await http.get(url, headers: _getHeaders(accessToken));
   }
 
-  // 6. API LẤY DANH SÁCH CHUYẾN ĐÃ HỦY (Cancel - Status 5)
   static Future<http.Response> getCanceledRides({
     required String accessToken,
     int page = 1,
     int pageSize = 20,
   }) async {
-    final url = Uri.parse("$baseUrl/rides/cancel?page=$page&pageSize=$pageSize");
-    return await http.get(url, headers: _getHeaders(accessToken));
-  }
-
-  static Future<http.Response> getStatisticalDay({required String date}) async {
-    // Nếu Postman của bạn không có chữ /api/, hãy xóa nó đi ở dưới
-    final url = Uri.parse('https://xeghepdongduong.com/api/adminapi/statistical-day?date=$date');
-    return await http.get(url);
-  }
-
-  // 9. Thống kê theo tháng (Không Token)
-  static Future<http.Response> getStatisticalMonth({required int month, required int year}) async {
-    final url = Uri.parse('https://xeghepdongduong.com/api/adminapi/statistical-month?month=$month&year=$year');
-    return await http.get(url);
-  }
-
-  // 10. Thống kê theo năm (Không Token)
-  static Future<http.Response> getStatisticalYear({required int year}) async {
-    final url = Uri.parse('https://xeghepdongduong.com/api/adminapi/statistical-year?year=$year');
-    return await http.get(url);
-  }
-
-  // 12. Lấy danh sách các yêu cầu rút tiền (KẾ TOÁN)
-  static Future<http.Response> getWithdrawalRequest({
-    required String accessToken,
-    int page = 1,
-    int pageSize = 20,
-  }) async {
-    final url = Uri.parse("https://xeghepdongduong.com/api/adminapi/withdrawals?page=$page&pageSize=$pageSize");
-    return await http.get(url, headers: _getHeaders(accessToken));
-  }
-
-  //13. Lấy lịch sử duyệt rút tiền
-  static Future<http.Response> getWithdrawalConfirmHistory({
-    required String accessToken,
-    int page = 1,
-    int pageSize = 20,
-  }) async {
-    final url = Uri.parse("https://xeghepdongduong.com/api/adminapi/withdrawal/history?page=$page&pageSize=$pageSize");
-    return await http.get(url, headers: _getHeaders(accessToken));
-  }
-
-  //14. Xác nhận yêu cầu rút tiền
-  static Future<http.Response> acceptWithdrawalRequest({
-    required String accessToken,
-    required int withdrawalId,
-  }) async {
     final url = Uri.parse(
-      "https://xeghepdongduong.com/api/adminapi/withdrawal/accept/$withdrawalId",
+      "$baseUrl/adminapi/rides/cancel?page=$page&pageSize=$pageSize",
     );
 
-    return await http.post(
+    return await http.get(url, headers: _getHeaders(accessToken));
+  }
+
+  static Future<http.Response> getRideDetail({
+    required String accessToken,
+    required int rideId,
+    required int rideSource,
+  }) async {
+    final url = Uri.parse("$baseUrl/AdminApi/rides/$rideId/$rideSource");
+
+    return await http.get(
       url,
       headers: _getHeaders(accessToken),
     );
-  }
-
-  // 15. Từ chối yêu cầu rút tiền
-  static Future<http.Response> rejectWithdrawalRequest({
-    required String accessToken,
-    required int withdrawalId,
-    required String reasonCancel,
-  }) async {
-    final url = Uri.parse(
-      "https://xeghepdongduong.com/api/adminapi/withdrawal/reject/$withdrawalId",
-    );
-
-    return await http.post(
-      url,
-      headers: _getHeaders(accessToken),
-      body: jsonEncode({
-        "reasonCancel": reasonCancel,
-      }),
-    );
-  }
-
-  //lấy danh sách voucher Tết được dùng
-  static Future<List<VoucherStatisticModel>> getVoucherStatistics() async {
-    const url = 'https://xeghepdongduong.com/api/adminapi/voucher-statistics';
-
-    final response = await http.get(Uri.parse(url));
-
-    if (response.statusCode == 200) {
-      final body = jsonDecode(response.body);
-
-      return (body['data'] as List)
-          .map((e) => VoucherStatisticModel.fromJson(e))
-          .toList();
-    } else {
-      throw Exception(
-        'Lỗi :${response.statusCode}',
-      );
-    }
-  }
-
-  // lấy danh sách tỉnh/thành
-  static Future<List<ProvinceRideCountDto>> getRideCountByProvince(String token) async {
-    final url = Uri.parse("https://xeghepdongduong.com/api/provinceapi/active");
-
-    try {
-      final res = await http.get(
-        url,
-        headers: {
-          "Authorization": "Bearer $token",
-          "Accept": "application/json",
-        },
-      );
-
-      if (res.body.trim().isEmpty) {
-        print("⚠️ getRideCountByProvince empty body");
-        return [];
-      }
-
-      final data = jsonDecode(res.body);
-
-      if (res.statusCode == 200 && data is List) {
-        return data
-            .map((e) => ProvinceRideCountDto.fromJson(Map<String, dynamic>.from(e)))
-            .toList();
-      }
-
-      print("⚠️ getRideCountByProvince fail: ${res.statusCode} - ${res.body}");
-      return [];
-    } catch (e) {
-      print("🔥 getRideCountByProvince ERROR: $e");
-      return [];
-    }
-  }
-
-// lấy danh sách quận/huyện theo tỉnh
-  static Future<List<DistrictRideCountDto>> getRideCountByDistrict(
-      String token,
-      int provinceId,
-      ) async {
-    final url = Uri.parse(
-      "https://xeghepdongduong.com/api/provinceapi/district/$provinceId",
-    );
-
-    try {
-      final res = await http.get(
-        url,
-        headers: {
-          "Authorization": "Bearer $token",
-          "Accept": "application/json",
-        },
-      );
-
-      if (res.body.trim().isEmpty) {
-        print("⚠️ getRideCountByDistrict empty body");
-        return [];
-      }
-
-      final data = jsonDecode(res.body);
-
-      if (res.statusCode == 200 && data is List) {
-        return data
-            .map((e) => DistrictRideCountDto.fromJson(Map<String, dynamic>.from(e)))
-            .toList();
-      }
-
-      print("⚠️ getRideCountByDistrict fail: ${res.statusCode} - ${res.body}");
-      return [];
-    } catch (e) {
-      print("🔥 getRideCountByDistrict ERROR: $e");
-      return [];
-    }
   }
 
   static Future<List<AdminRideLookupModel>> getPendingRideItems({
@@ -260,13 +136,40 @@ class ApiService {
       pageSize: pageSize,
     );
 
-    if (response.body.trim().isEmpty) return [];
+    if (response.statusCode != 200) {
+      throw Exception(
+        "Không thể tải danh sách chuyến pending: ${response.statusCode}",
+      );
+    }
 
-    final body = jsonDecode(response.body);
-    if (response.statusCode == 200 && body['success'] == true && body['data'] is List) {
-      return (body['data'] as List)
-          .map((e) => AdminRideLookupModel.fromJson(Map<String, dynamic>.from(e)))
+    final decoded = jsonDecode(response.body);
+
+    if (decoded is List) {
+      return decoded
+          .map((item) => AdminRideLookupModel.fromJson(item))
           .toList();
+    }
+
+    if (decoded is Map<String, dynamic>) {
+      final dynamic data = decoded['data'];
+
+      if (data is List) {
+        return data
+            .map((item) => AdminRideLookupModel.fromJson(item))
+            .toList();
+      }
+
+      if (data is Map<String, dynamic> && data['items'] is List) {
+        return (data['items'] as List)
+            .map((item) => AdminRideLookupModel.fromJson(item))
+            .toList();
+      }
+
+      if (decoded['items'] is List) {
+        return (decoded['items'] as List)
+            .map((item) => AdminRideLookupModel.fromJson(item))
+            .toList();
+      }
     }
 
     return [];
@@ -283,16 +186,207 @@ class ApiService {
       pageSize: pageSize,
     );
 
-    if (response.body.trim().isEmpty) return [];
+    if (response.statusCode != 200) {
+      throw Exception(
+        "Không thể tải danh sách chuyến đã hủy: ${response.statusCode}",
+      );
+    }
 
-    final body = jsonDecode(response.body);
-    if (response.statusCode == 200 && body['success'] == true && body['data'] is List) {
-      return (body['data'] as List)
-          .map((e) => AdminRideLookupModel.fromJson(Map<String, dynamic>.from(e)))
+    final decoded = jsonDecode(response.body);
+
+    if (decoded is List) {
+      return decoded
+          .map((item) => AdminRideLookupModel.fromJson(item))
           .toList();
+    }
+
+    if (decoded is Map<String, dynamic>) {
+      final dynamic data = decoded['data'];
+
+      if (data is List) {
+        return data
+            .map((item) => AdminRideLookupModel.fromJson(item))
+            .toList();
+      }
+
+      if (data is Map<String, dynamic> && data['items'] is List) {
+        return (data['items'] as List)
+            .map((item) => AdminRideLookupModel.fromJson(item))
+            .toList();
+      }
+
+      if (decoded['items'] is List) {
+        return (decoded['items'] as List)
+            .map((item) => AdminRideLookupModel.fromJson(item))
+            .toList();
+      }
     }
 
     return [];
   }
+
+  static Future<http.Response> getStatisticalDay({
+    required String accessToken,
+    required String date,
+  }) async {
+    final url = Uri.parse("$baseUrl/adminapi/statistical-day?date=$date");
+
+    return await http.get(
+      url,
+      headers: _getHeaders(accessToken),
+    );
+  }
+
+  static Future<http.Response> getStatisticalMonth({
+    required String accessToken,
+    required int month,
+    required int year,
+  }) async {
+    final url = Uri.parse(
+      "$baseUrl/adminapi/statistical-month?month=$month&year=$year",
+    );
+
+    return await http.get(
+      url,
+      headers: _getHeaders(accessToken),
+    );
+  }
+
+  static Future<http.Response> getStatisticalYear({
+    required String accessToken,
+    required int year,
+  }) async {
+    final url = Uri.parse("$baseUrl/adminapi/statistical-year?year=$year");
+
+    return await http.get(
+      url,
+      headers: _getHeaders(accessToken),
+    );
+  }
+
+  static Future<List<VoucherStatisticModel>> getVoucherStatistics({
+    required String accessToken,
+  }) async {
+    final url = Uri.parse("$baseUrl/adminapi/voucher-statistics");
+
+    final response = await http.get(
+      url,
+      headers: _getHeaders(accessToken),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        "Không thể tải thống kê voucher: ${response.statusCode}",
+      );
+    }
+
+    final decoded = jsonDecode(response.body);
+
+    if (decoded is Map<String, dynamic> && decoded['data'] is List) {
+      return (decoded['data'] as List)
+          .map((item) => VoucherStatisticModel.fromJson(item))
+          .toList();
+    }
+
+    if (decoded is List) {
+      return decoded
+          .map((item) => VoucherStatisticModel.fromJson(item))
+          .toList();
+    }
+
+    throw Exception("Dữ liệu voucher không hợp lệ");
+  }
+
+  static Future<http.Response> testAdminNotification({
+    required String accessToken,
+    required int adminId,
+  }) async {
+    final url = Uri.parse("$baseUrl/testnotiapi/admin/$adminId");
+
+    return await http.post(
+      url,
+      headers: _getHeaders(accessToken),
+    );
+  }
+
+  static Future<http.Response> getWithdrawalRequest({
+    required String accessToken,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final url = Uri.parse(
+      "$baseUrl/adminapi/withdrawals?page=$page&pageSize=$pageSize",
+    );
+
+    return await http.get(url, headers: _getHeaders(accessToken));
+  }
+
+  static Future<http.Response> getWithdrawalConfirmHistory({
+    required String accessToken,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final url = Uri.parse(
+      "$baseUrl/adminapi/withdrawal/history?page=$page&pageSize=$pageSize",
+    );
+
+    return await http.get(url, headers: _getHeaders(accessToken));
+  }
+
+  static Future<http.Response> acceptWithdrawalRequest({
+    required String accessToken,
+    required int withdrawalId,
+  }) async {
+    final url = Uri.parse(
+      "$baseUrl/adminapi/withdrawal/accept/$withdrawalId",
+    );
+
+    return await http.post(
+      url,
+      headers: _getHeaders(accessToken),
+    );
+  }
+
+  static Future<http.Response> rejectWithdrawalRequest({
+    required String accessToken,
+    required int withdrawalId,
+    required String reasonCancel,
+  }) async {
+    final url = Uri.parse(
+      "$baseUrl/adminapi/withdrawal/reject/$withdrawalId",
+    );
+
+    return await http.post(
+      url,
+      headers: _getHeaders(accessToken),
+      body: jsonEncode({
+        "reasonCancel": reasonCancel,
+      }),
+    );
+  }
+
+  static Future<http.Response> getRideCountByProvince({
+    required String accessToken,
+  }) async {
+    final url = Uri.parse("$baseUrl/provinceapi/active");
+
+    return await http.get(
+      url,
+      headers: _getHeaders(accessToken),
+    );
+  }
+
+  static Future<http.Response> getRideCountByDistrict({
+    required String accessToken,
+    required int provinceId,
+  }) async {
+    final url = Uri.parse("$baseUrl/provinceapi/district/$provinceId");
+
+    return await http.get(
+      url,
+      headers: _getHeaders(accessToken),
+    );
+  }
+
 
 }

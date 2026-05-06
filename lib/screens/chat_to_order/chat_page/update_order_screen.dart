@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../models/chat/chat_ride_card_dto.dart';
@@ -78,10 +80,18 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
 
   void _initData() {
     final ride = widget.currentRide;
-    _fromAddressController = TextEditingController(text: ride?.fromAddress ?? '');
-    _toAddressController = TextEditingController(text: ride?.toAddress ?? '');
-    _customerPhoneController = TextEditingController(text: ride?.customerPhone ?? '');
-    _noteController = TextEditingController(text: ride?.note ?? '');
+    _fromAddressController = TextEditingController(
+      text: ride?.fromAddress ?? '',
+    );
+    _toAddressController = TextEditingController(
+      text: ride?.toAddress ?? '',
+    );
+    _customerPhoneController = TextEditingController(
+      text: ride?.customerPhone ?? '',
+    );
+    _noteController = TextEditingController(
+      text: ride?.note ?? '',
+    );
     _quantity = ride?.quantity ?? 1;
     _pickupTime = ride?.pickupTime;
     _fromDistrictId = ride?.fromDistrictId;
@@ -133,17 +143,38 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
 
   bool get _isLatestRide =>
       widget.currentRide != null &&
-      widget.latestRideId != null &&
-      widget.currentRide!.rideId == widget.latestRideId;
+          widget.latestRideId != null &&
+          widget.currentRide!.rideId == widget.latestRideId;
 
   Future<void> _loadProvinces() async {
     setState(() => _isLoadingProvince = true);
-    final data = await ApiService.getRideCountByProvince(widget.token);
-    if (!mounted) return;
-    setState(() {
-      _provinces = data;
-      _isLoadingProvince = false;
-    });
+
+    try {
+      final response = await ApiService.getRideCountByProvince(
+        accessToken: widget.token,
+      );
+
+      final decoded = jsonDecode(response.body);
+      final rawList = _extractList(decoded);
+
+      final data = rawList
+          .map(
+            (e) => ProvinceRideCountDto.fromJson(
+          Map<String, dynamic>.from(e),
+        ),
+      )
+          .toList();
+
+      if (!mounted) return;
+      setState(() {
+        _provinces = data;
+        _isLoadingProvince = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingProvince = false);
+      _showError("Không tải được danh sách tỉnh/thành");
+    }
   }
 
   Future<void> _loadFromDistricts(int provinceId) async {
@@ -152,12 +183,34 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
       _fromDistricts = [];
       _fromDistrictId = null;
     });
-    final data = await ApiService.getRideCountByDistrict(widget.token, provinceId);
-    if (!mounted) return;
-    setState(() {
-      _fromDistricts = data;
-      _isLoadingFromDistrict = false;
-    });
+
+    try {
+      final response = await ApiService.getRideCountByDistrict(
+        accessToken: widget.token,
+        provinceId: provinceId,
+      );
+
+      final decoded = jsonDecode(response.body);
+      final rawList = _extractList(decoded);
+
+      final data = rawList
+          .map(
+            (e) => DistrictRideCountDto.fromJson(
+          Map<String, dynamic>.from(e),
+        ),
+      )
+          .toList();
+
+      if (!mounted) return;
+      setState(() {
+        _fromDistricts = data;
+        _isLoadingFromDistrict = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingFromDistrict = false);
+      _showError("Không tải được quận/huyện đón");
+    }
   }
 
   Future<void> _loadToDistricts(int provinceId) async {
@@ -166,12 +219,54 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
       _toDistricts = [];
       _toDistrictId = null;
     });
-    final data = await ApiService.getRideCountByDistrict(widget.token, provinceId);
-    if (!mounted) return;
-    setState(() {
-      _toDistricts = data;
-      _isLoadingToDistrict = false;
-    });
+
+    try {
+      final response = await ApiService.getRideCountByDistrict(
+        accessToken: widget.token,
+        provinceId: provinceId,
+      );
+
+      final decoded = jsonDecode(response.body);
+      final rawList = _extractList(decoded);
+
+      final data = rawList
+          .map(
+            (e) => DistrictRideCountDto.fromJson(
+          Map<String, dynamic>.from(e),
+        ),
+      )
+          .toList();
+
+      if (!mounted) return;
+      setState(() {
+        _toDistricts = data;
+        _isLoadingToDistrict = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingToDistrict = false);
+      _showError("Không tải được quận/huyện trả");
+    }
+  }
+
+  List<dynamic> _extractList(dynamic decoded) {
+    if (decoded is List) {
+      return decoded;
+    }
+
+    if (decoded is Map<String, dynamic>) {
+      if (decoded['data'] is List) {
+        return decoded['data'] as List<dynamic>;
+      }
+      if (decoded['items'] is List) {
+        return decoded['items'] as List<dynamic>;
+      }
+      if (decoded['result'] is List) {
+        return decoded['result'] as List<dynamic>;
+      }
+    }
+
+    return [];
   }
 
   Future<void> _submitUpdate() async {
@@ -188,7 +283,9 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
       "toAddress": _toAddressController.text.trim(),
       "customerPhone": _customerPhoneController.text.trim(),
       "pickupTime": _pickupTime!.toIso8601String(),
-      "note": _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+      "note": _noteController.text.trim().isEmpty
+          ? null
+          : _noteController.text.trim(),
       "quantity": _quantity,
     };
 
@@ -216,7 +313,6 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
           ],
           _buildSummaryCard(ride, _isCancelled),
           const SizedBox(height: 16),
-
           if (widget.isCheckingRideStatus)
             Container(
               margin: const EdgeInsets.only(bottom: 16),
@@ -243,11 +339,8 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
                 ],
               ),
             ),
-
           if (!_isCancelled && !_isLatestRide) _buildOldRideNotice(),
-
           if (!_isCancelled && !_isEditing) _buildMainActions(),
-
           if (_isEditing) ...[
             _buildEditFormHeader(),
             const SizedBox(height: 12),
@@ -255,7 +348,6 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
             const SizedBox(height: 20),
             _buildFormActions(),
           ],
-
           if (_isCancelled) _buildCancelledAlert(),
           const SizedBox(height: 40),
         ],
@@ -294,7 +386,9 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
               foregroundColor: Colors.redAccent,
               side: const BorderSide(color: Colors.redAccent),
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ),
@@ -310,7 +404,9 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
               backgroundColor: beluDarkBlue,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               elevation: 0,
             ),
           ),
@@ -393,7 +489,9 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
                         child: Text(
                           ride.pickupTime == null
                               ? "Chưa có giờ đón"
-                              : DateFormat('HH:mm dd/MM').format(ride.pickupTime!),
+                              : DateFormat('HH:mm dd/MM').format(
+                            ride.pickupTime!,
+                          ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -444,7 +542,7 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
           onPressed: () => setState(() => _isEditing = false),
           icon: const Icon(Icons.close, size: 16, color: Colors.grey),
           label: const Text("Đóng", style: TextStyle(color: Colors.grey)),
-        )
+        ),
       ],
     );
   }
@@ -588,7 +686,9 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
         backgroundColor: Colors.green[700],
         foregroundColor: Colors.white,
         minimumSize: const Size(double.infinity, 52),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
       child: widget.isUpdating
           ? const CircularProgressIndicator(color: Colors.white)
@@ -731,7 +831,10 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
               children: [
                 Icon(icon, size: 18, color: beluDarkBlue),
                 const SizedBox(width: 8),
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ],
             ),
           ),
@@ -755,7 +858,10 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 14,
+      ),
     );
   }
 
@@ -844,6 +950,15 @@ class _UpdateOrderScreenState extends State<UpdateOrderScreen> {
           fontWeight: FontWeight.bold,
         ),
         textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.redAccent,
       ),
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../models/chat/chat_ride_card_dto.dart';
@@ -51,7 +53,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   bool _isLoadingFromDistrict = false;
   bool _isLoadingToDistrict = false;
 
-  // Màu sắc thương hiệu
   static const Color beluDarkBlue = Color(0xFF0288D1);
   static const Color accentColor = Color(0xFFE3F2FD);
 
@@ -71,18 +72,31 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
     super.dispose();
   }
 
-  // --- Logic API giữ nguyên ---
   Future<void> _loadProvinces() async {
     setState(() => _isLoadingProvince = true);
+
     try {
-      final data = await ApiService.getRideCountByProvince(widget.token);
+      final response = await ApiService.getRideCountByProvince(
+        accessToken: widget.token,
+      );
+
+      final decoded = jsonDecode(response.body);
+      final List<dynamic> rawList = _extractList(decoded);
+
+      final data = rawList
+          .map((e) => ProvinceRideCountDto.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+
       if (!mounted) return;
+
       setState(() {
         _provinces = data;
         _isLoadingProvince = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoadingProvince = false);
+      _showError("Không tải được danh sách tỉnh/thành");
     }
   }
 
@@ -92,12 +106,31 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
       _fromDistricts = [];
       _fromDistrictId = null;
     });
-    final data = await ApiService.getRideCountByDistrict(widget.token, provinceId);
-    if (!mounted) return;
-    setState(() {
-      _fromDistricts = data;
-      _isLoadingFromDistrict = false;
-    });
+
+    try {
+      final response = await ApiService.getRideCountByDistrict(
+        accessToken: widget.token,
+        provinceId: provinceId,
+      );
+
+      final decoded = jsonDecode(response.body);
+      final List<dynamic> rawList = _extractList(decoded);
+
+      final data = rawList
+          .map((e) => DistrictRideCountDto.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+
+      if (!mounted) return;
+
+      setState(() {
+        _fromDistricts = data;
+        _isLoadingFromDistrict = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingFromDistrict = false);
+      _showError("Không tải được quận/huyện đón");
+    }
   }
 
   Future<void> _loadToDistricts(int provinceId) async {
@@ -106,40 +139,92 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
       _toDistricts = [];
       _toDistrictId = null;
     });
-    final data = await ApiService.getRideCountByDistrict(widget.token, provinceId);
-    if (!mounted) return;
-    setState(() {
-      _toDistricts = data;
-      _isLoadingToDistrict = false;
-    });
+
+    try {
+      final response = await ApiService.getRideCountByDistrict(
+        accessToken: widget.token,
+        provinceId: provinceId,
+      );
+
+      final decoded = jsonDecode(response.body);
+      final List<dynamic> rawList = _extractList(decoded);
+
+      final data = rawList
+          .map((e) => DistrictRideCountDto.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+
+      if (!mounted) return;
+
+      setState(() {
+        _toDistricts = data;
+        _isLoadingToDistrict = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingToDistrict = false);
+      _showError("Không tải được quận/huyện trả");
+    }
+  }
+
+  List<dynamic> _extractList(dynamic decoded) {
+    if (decoded is List) {
+      return decoded;
+    }
+
+    if (decoded is Map<String, dynamic>) {
+      if (decoded['data'] is List) {
+        return decoded['data'] as List<dynamic>;
+      }
+      if (decoded['items'] is List) {
+        return decoded['items'] as List<dynamic>;
+      }
+      if (decoded['result'] is List) {
+        return decoded['result'] as List<dynamic>;
+      }
+    }
+
+    return [];
   }
 
   Future<void> _pickDateTime() async {
     final now = DateTime.now();
+
     final pickedDate = await showDatePicker(
       context: context,
       initialDate: _pickupTime ?? now,
       firstDate: now,
       lastDate: DateTime(now.year + 2),
     );
+
     if (pickedDate == null || !mounted) return;
+
     final pickedTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(_pickupTime ?? now),
     );
+
     if (pickedTime == null) return;
+
     setState(() {
-      _pickupTime = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
+      _pickupTime = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
     });
   }
 
   Future<void> _submit() async {
     if (!widget.canCreateRide || widget.isCreating) return;
     if (!_formKey.currentState!.validate()) return;
+
     if (_fromDistrictId == null || _toDistrictId == null) {
       _showError("Vui lòng chọn đầy đủ quận/huyện đón và trả");
       return;
     }
+
     if (_pickupTime == null) {
       _showError("Vui lòng chọn thời gian đón");
       return;
@@ -154,15 +239,25 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
       "customerPhone": _customerPhoneController.text.trim(),
       "pickupTime": _pickupTime!.toIso8601String(),
       "paymentMethod": _paymentMethod,
-      "note": _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+      "note": _noteController.text.trim().isEmpty
+          ? null
+          : _noteController.text.trim(),
       "quantity": _quantity,
-      "paymentContent": _paymentContentController.text.trim().isEmpty ? null : _paymentContentController.text.trim(),
+      "paymentContent": _paymentContentController.text.trim().isEmpty
+          ? null
+          : _paymentContentController.text.trim(),
     };
+
     await widget.onCreateRide(body);
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.redAccent));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
   }
 
   @override
@@ -176,7 +271,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // --- KHỐI 1: LỘ TRÌNH ---
             _buildCardGroup(
               title: "Lộ trình di chuyển",
               icon: Icons.route_outlined,
@@ -219,7 +313,13 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                 ),
                 const Padding(
                   padding: EdgeInsets.only(left: 11),
-                  child: SizedBox(height: 20, child: VerticalDivider(thickness: 2, color: Colors.grey)),
+                  child: SizedBox(
+                    height: 20,
+                    child: VerticalDivider(
+                      thickness: 2,
+                      color: Colors.grey,
+                    ),
+                  ),
                 ),
                 _buildRouteStep(
                   icon: Icons.location_on,
@@ -229,7 +329,15 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                       _buildProvinceDropdown(
                         label: "Tỉnh/Thành phố trả",
                         value: _toProvinceId,
-                        onChanged: widget.isCreating ? null : (v) => v != null ? _loadToDistricts(v).then((_) => setState(() => _toProvinceId = v)) : null,
+                        onChanged: widget.isCreating
+                            ? null
+                            : (v) async {
+                          if (v == null) return;
+                          setState(() {
+                            _toProvinceId = v;
+                          });
+                          await _loadToDistricts(v);
+                        },
                       ),
                       const SizedBox(height: 12),
                       _buildDistrictDropdown(
@@ -251,10 +359,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                 ),
               ],
             ),
-
             const SizedBox(height: 20),
-
-            // --- KHỐI 2: THÔNG TIN KHÁCH & THỜI GIAN ---
             _buildCardGroup(
               title: "Thông tin đơn hàng",
               icon: Icons.person_outline,
@@ -274,10 +379,18 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                       child: InkWell(
                         onTap: widget.isCreating ? null : _pickDateTime,
                         child: InputDecorator(
-                          decoration: _inputDecoration("Thời gian đón", prefixIcon: Icons.calendar_today),
+                          decoration: _inputDecoration(
+                            "Thời gian đón",
+                            prefixIcon: Icons.calendar_today,
+                          ),
                           child: Text(
-                            _pickupTime == null ? "Chọn giờ" : DateFormat('HH:mm dd/MM').format(_pickupTime!),
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                            _pickupTime == null
+                                ? "Chọn giờ"
+                                : DateFormat('HH:mm dd/MM').format(_pickupTime!),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
@@ -288,7 +401,13 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                       child: DropdownButtonFormField<int>(
                         value: _quantity,
                         decoration: _inputDecoration("Số người"),
-                        items: List.generate(7, (i) => DropdownMenuItem(value: i + 1, child: Text("${i + 1}"))),
+                        items: List.generate(
+                          7,
+                              (i) => DropdownMenuItem(
+                            value: i + 1,
+                            child: Text("${i + 1}"),
+                          ),
+                        ),
                         onChanged: (v) => setState(() => _quantity = v!),
                       ),
                     ),
@@ -296,10 +415,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                 ),
               ],
             ),
-
             const SizedBox(height: 20),
-
-            // --- KHỐI 3: THANH TOÁN & GHI CHÚ ---
             _buildCardGroup(
               title: "Thanh toán & Ghi chú",
               icon: Icons.payments_outlined,
@@ -327,21 +443,27 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                 ),
               ],
             ),
-
             const SizedBox(height: 32),
-
-            // NÚT SUBMIT
             ElevatedButton(
               onPressed: widget.isCreating ? null : _submit,
               style: ElevatedButton.styleFrom(
                 backgroundColor: beluDarkBlue,
                 minimumSize: const Size(double.infinity, 54),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 elevation: 2,
               ),
               child: widget.isCreating
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("XÁC NHẬN TẠO ĐƠN", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  : const Text(
+                "XÁC NHẬN TẠO ĐƠN",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
             ),
             const SizedBox(height: 40),
           ],
@@ -350,14 +472,22 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
     );
   }
 
-  // --- WIDGET HELPER ---
-
-  Widget _buildCardGroup({required String title, required IconData icon, required List<Widget> children}) {
+  Widget _buildCardGroup({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -368,29 +498,54 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
               children: [
                 Icon(icon, size: 20, color: beluDarkBlue),
                 const SizedBox(width: 8),
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: beluDarkBlue)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: beluDarkBlue,
+                  ),
+                ),
               ],
             ),
           ),
           const Divider(height: 1),
-          Padding(padding: const EdgeInsets.all(16), child: Column(children: children)),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(children: children),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildRouteStep({required IconData icon, required Color iconColor, required Widget child}) {
+  Widget _buildRouteStep({
+    required IconData icon,
+    required Color iconColor,
+    required Widget child,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(padding: const EdgeInsets.only(top: 12), child: Icon(icon, size: 22, color: iconColor)),
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Icon(icon, size: 22, color: iconColor),
+        ),
         const SizedBox(width: 12),
         Expanded(child: child),
       ],
     );
   }
 
-  Widget _buildTextField({required TextEditingController controller, required String label, String? hint, IconData? prefixIcon, int maxLines = 1, String? Function(String?)? validator, TextInputType? keyboardType}) {
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    String? hint,
+    IconData? prefixIcon,
+    int maxLines = 1,
+    String? Function(String?)? validator,
+    TextInputType? keyboardType,
+  }) {
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
@@ -401,38 +556,83 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
     );
   }
 
-  InputDecoration _inputDecoration(String label, {String? hint, IconData? prefixIcon}) {
+  InputDecoration _inputDecoration(
+      String label, {
+        String? hint,
+        IconData? prefixIcon,
+      }) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
       prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 20) : null,
       filled: true,
       fillColor: const Color(0xFFF1F5F9),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: beluDarkBlue, width: 1)),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: beluDarkBlue, width: 1),
+      ),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 14,
+      ),
       labelStyle: const TextStyle(fontSize: 14, color: Colors.blueGrey),
     );
   }
 
-  // Reuse logic dropdown của bạn nhưng bọc trong input decoration mới
-  Widget _buildProvinceDropdown({required String label, required int? value, required ValueChanged<int?>? onChanged}) {
+  Widget _buildProvinceDropdown({
+    required String label,
+    required int? value,
+    required ValueChanged<int?>? onChanged,
+  }) {
     return DropdownButtonFormField<int>(
       value: value,
       decoration: _inputDecoration(label),
-      items: _provinces.map((e) => DropdownMenuItem(value: e.id, child: Text(e.name, style: const TextStyle(fontSize: 14)))).toList(),
+      items: _provinces
+          .map(
+            (e) => DropdownMenuItem(
+          value: e.id,
+          child: Text(
+            e.name,
+            style: const TextStyle(fontSize: 14),
+          ),
+        ),
+      )
+          .toList(),
       onChanged: _isLoadingProvince ? null : onChanged,
       validator: (v) => v == null ? "Bắt buộc" : null,
       hint: Text(_isLoadingProvince ? "Đang tải..." : "Chọn tỉnh"),
     );
   }
 
-  Widget _buildDistrictDropdown({required String label, required int? value, required List<DistrictRideCountDto> districts, required bool isLoading, required ValueChanged<int?>? onChanged}) {
+  Widget _buildDistrictDropdown({
+    required String label,
+    required int? value,
+    required List<DistrictRideCountDto> districts,
+    required bool isLoading,
+    required ValueChanged<int?>? onChanged,
+  }) {
     return DropdownButtonFormField<int>(
       value: value,
       decoration: _inputDecoration(label),
-      items: districts.map((e) => DropdownMenuItem(value: e.id, child: Text(e.name, style: const TextStyle(fontSize: 14)))).toList(),
+      items: districts
+          .map(
+            (e) => DropdownMenuItem(
+          value: e.id,
+          child: Text(
+            e.name,
+            style: const TextStyle(fontSize: 14),
+          ),
+        ),
+      )
+          .toList(),
       onChanged: isLoading ? null : onChanged,
       validator: (v) => v == null ? "Bắt buộc" : null,
       hint: Text(isLoading ? "Đang tải..." : "Chọn huyện"),
@@ -451,13 +651,21 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
             const SizedBox(height: 16),
             Text(
               ride == null ? "Không thể tạo đơn" : "Đơn hàng đang xử lý",
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
-              ride == null ? "Hệ thống hiện không tiếp nhận đơn mới." : "Mã đơn: ${ride.code}\nTrạng thái: ${ride.status}\n\nVui lòng hoàn tất đơn hiện tại trước khi tạo đơn mới.",
+              ride == null
+                  ? "Hệ thống hiện không tiếp nhận đơn mới."
+                  : "Mã đơn: ${ride.code}\nTrạng thái: ${ride.status}\n\nVui lòng hoàn tất đơn hiện tại trước khi tạo đơn mới.",
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[600], height: 1.5),
+              style: TextStyle(
+                color: Colors.grey[600],
+                height: 1.5,
+              ),
             ),
           ],
         ),
@@ -465,6 +673,9 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
     );
   }
 
-  String? _requiredValidator(String? v) => (v == null || v.isEmpty) ? "Không được để trống" : null;
-  String? _phoneValidator(String? v) => (v == null || v.length < 9) ? "SĐT không hợp lệ" : null;
+  String? _requiredValidator(String? v) =>
+      (v == null || v.isEmpty) ? "Không được để trống" : null;
+
+  String? _phoneValidator(String? v) =>
+      (v == null || v.length < 9) ? "SĐT không hợp lệ" : null;
 }
