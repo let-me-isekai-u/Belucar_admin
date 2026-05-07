@@ -1,4 +1,3 @@
-import 'dart:collection';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -22,12 +21,16 @@ class _StatusTwoScreenState extends State<StatusTwoScreen> {
   final ScrollController _scrollController = ScrollController();
 
   final List<RideModel> _allRides = [];
-  Map<String, List<RideModel>> _groupedRides = LinkedHashMap();
+  Map<String, List<RideModel>> _groupedRides = <String, List<RideModel>>{};
   int _userRole = 0;
 
   int _currentPage = 1;
   bool _hasNext = true;
   bool _isLoading = false;
+
+  Iterable<RideModel> get _ridesForDisplay => _userRole == 3
+      ? _allRides.where((ride) => ride.rideSource == 2)
+      : _allRides;
 
   @override
   void initState() {
@@ -45,13 +48,9 @@ class _StatusTwoScreenState extends State<StatusTwoScreen> {
   }
 
   void _groupData() {
-    final Map<String, List<RideModel>> tempGroups = LinkedHashMap();
+    final Map<String, List<RideModel>> tempGroups = <String, List<RideModel>>{};
 
-    final ridesForDisplay = _userRole == 3
-        ? _allRides.where((ride) => ride.rideSource == 2)
-        : _allRides;
-
-    for (var ride in ridesForDisplay) {
+    for (final ride in _ridesForDisplay) {
       try {
         final dateTime = DateTime.parse(ride.createdDate);
         final dateKey = DateFormat('dd/MM/yyyy').format(dateTime);
@@ -78,6 +77,8 @@ class _StatusTwoScreenState extends State<StatusTwoScreen> {
 
     setState(() => _isLoading = true);
 
+    var shouldLoadMoreForRole3 = false;
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('accessToken') ?? '';
@@ -94,7 +95,7 @@ class _StatusTwoScreenState extends State<StatusTwoScreen> {
 
         final pagedData = PagedResponse<RideModel>.fromJson(
           body,
-              (item) => RideModel.fromJson(item as Map<String, dynamic>),
+          (item) => RideModel.fromJson(item as Map<String, dynamic>),
         );
 
         if (!mounted) return;
@@ -104,12 +105,17 @@ class _StatusTwoScreenState extends State<StatusTwoScreen> {
           _hasNext = pagedData.hasNext;
           _currentPage++;
           _groupData();
+          shouldLoadMoreForRole3 =
+              _userRole == 3 && _groupedRides.isEmpty && _hasNext;
         });
       }
     } catch (e) {
       debugPrint("Lỗi tải đơn hàng Status 2: $e");
     } finally {
       if (mounted) setState(() => _isLoading = false);
+      if (mounted && shouldLoadMoreForRole3) {
+        _loadData();
+      }
     }
   }
 
@@ -143,6 +149,7 @@ class _StatusTwoScreenState extends State<StatusTwoScreen> {
   @override
   Widget build(BuildContext context) {
     final dateKeys = _groupedRides.keys.toList();
+    final hasVisibleRides = _groupedRides.isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -154,90 +161,88 @@ class _StatusTwoScreenState extends State<StatusTwoScreen> {
         onRefresh: () => _loadData(isRefresh: true),
         child: _isLoading && _allRides.isEmpty
             ? const Center(child: CircularProgressIndicator())
-            : _allRides.isEmpty
+            : !hasVisibleRides && !_hasNext
             ? const Center(child: Text("Chưa có chuyến nào được nhận"))
             : ListView.builder(
-          controller: _scrollController,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          itemCount: dateKeys.length + (_hasNext ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (index < dateKeys.length) {
-              final date = dateKeys[index];
-              final ridesOfDate = _groupedRides[date]!;
+                controller: _scrollController,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                itemCount: dateKeys.length + (_hasNext ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index < dateKeys.length) {
+                    final date = dateKeys[index];
+                    final ridesOfDate = _groupedRides[date]!;
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding:
-                    const EdgeInsets.only(top: 45, bottom: 5),
-                    child: Row(
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.blue[700],
-                            borderRadius: BorderRadius.circular(20),
-                          ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 45, bottom: 5),
                           child: Row(
                             children: [
-                              const Icon(
-                                Icons.calendar_today,
-                                size: 14,
-                                color: Colors.white,
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[700],
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.calendar_today,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      "Ngày $date",
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Divider(
+                                  thickness: 1,
+                                  color: Colors.blue[200],
+                                ),
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                "Ngày $date",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: Colors.white,
+                                "${ridesOfDate.length} đơn",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.blue[300],
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Divider(
-                            thickness: 1,
-                            color: Colors.blue[200],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          "${ridesOfDate.length} đơn",
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.blue[300],
-                          ),
-                        ),
+                        ...ridesOfDate.map((ride) => _buildRideCard(ride)),
                       ],
-                    ),
-                  ),
-                  ...ridesOfDate.map((ride) => _buildRideCard(ride)),
-                ],
-              );
-            } else {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-          },
-        ),
+                    );
+                  } else {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                },
+              ),
       ),
     );
   }
 
   Widget _buildRideCard(RideModel ride) {
-    final currencyFormat =
-    NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
+    final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
 
     return InkWell(
       onTap: () => _goToRideDetail(ride),
@@ -269,7 +274,7 @@ class _StatusTwoScreenState extends State<StatusTwoScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
+                      color: Colors.blue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(5),
                     ),
                     child: const Text(
@@ -344,11 +349,11 @@ class _StatusTwoScreenState extends State<StatusTwoScreen> {
   }
 
   Widget _buildLocationRow(
-      IconData icon,
-      Color color,
-      String label,
-      String address,
-      ) {
+    IconData icon,
+    Color color,
+    String label,
+    String address,
+  ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

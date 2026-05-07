@@ -340,8 +340,8 @@ class _BrokerRideApprovalDetailScreenState
               ),
               _detailRow('Thời gian tạo', _formatDateTime(item.createdAt)),
               _detailRow('Giờ đón', _formatDateTime(item.pickupTime)),
-              _detailRow('Loại chuyến', item.type.toString()),
-              _detailRow('Số lượng', item.quantity.toString()),
+              _detailRow('Loại chuyến', _rideTypeLabel(item.type)),
+              _detailRow('Số ghế', item.quantity.toString()),
               _detailRow('Route ID', item.routeId.toString()),
               _detailRow(
                 'Group',
@@ -594,6 +594,19 @@ class _BrokerRideApprovalDetailScreenState
   String _formatDateTime(DateTime? value) {
     if (value == null) return '-';
     return _dateTimeFormat.format(value.toLocal());
+  }
+
+  String _rideTypeLabel(int type) {
+    switch (type) {
+      case 1:
+        return 'Chở người';
+      case 2:
+        return 'Bao xe 5 chỗ';
+      case 3:
+        return 'Bao xe 7 chỗ';
+      default:
+        return type.toString();
+    }
   }
 
   String _statusLabel(int status, String fallback) {
